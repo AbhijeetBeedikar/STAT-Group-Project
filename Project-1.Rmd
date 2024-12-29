@@ -1,0 +1,130 @@
+---
+title: "Population Change against Temperature Change"
+author: Abhijeet, Charlie, Fabian, Walter
+output: html_document
+date: "2024-12-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+source("C:/Users/a6hij/Desktop/STAT240/scripts/ggprob.R")
+```
+
+## Introduction 
+
+Have you ever wondered why each winter seems to grow warmer, why Lake Mendota is melting weeks earlier than it used to, or why your favorite Caribbean holiday spots are no longer the sunny paradises they once were? As global temperatures rise, these changes are no longer isolated phenomena, but part of a larger, more pressing question: how much does human activity contribute to the warming of our planet? Population growth, accompanied by urbanization and environmental modifications, is one of the key drivers of these unsettling trends.  
+
+This study investigates the potential relationship between population growth and increasing surface temperatures across China. We have chosen China specifically because it has seen rapid growths in population which means the potential correlations between population growth and increasing surface temperature can be studied better. Our study aims to determine whether rising populations are correlated with significant changes in average surface temperatures and to explore the underlying mechanisms driving this relationship. 
+
+The findings of this study reveal a compelling pattern: as population increases, so does the average surface temperature in corresponding regions. This report presents evidence supporting this claim, visualizing data on China through graphs and analyzing the results of hypothesis testing to provide a clearer understanding of how population dynamics shape our planet's climate. 
+
+## Background
+
+#### China's Temperature
+
+https://ourworldindata.org/grapher/monthly-average-surface-temperatures-by-year?country=~CHN 
+
+“Monthly average surface temperatures by year, China” provides the source for the monthly average surface temperature in China from 1950 to 2024 (Nov and Dec of 2024 are missing). We extracted monthly averages and found the yearly mean. Broadly speaking, the dataset presents the average surface temperature across the entire world's nations areas for all 12 months of the year. However, it is possible to select only China's data and analyze it separately. We created our own dataset based on these values with two columns: `Year` (ranged 1950-2023) and `AverageTemp` (a float value). 
+
+
+#### China's Population
+
+https://ourworldindata.org/population-growth?country=~CHN 
+
+“Population Growth, China” provides the population of China yearly from 1950 to 2023. The complete dataset represents the population of every country yearly including a total measure of global population. We created our own dataset based on these values with two columns: `Year` (ranged 1950-2023) and `Population` (an integer). 
+
+
+#### Data Manipulation
+
+With these two datasets, we can join them using the `Year` Column, and then conduct some statistical analysis to see how likely it is that the change in population of China has an effect on its surface temperature.
+
+```{r}
+China_Population <- read_csv("C:/Users/a6hij/Downloads/STAT Proj/ChinaPop.csv")
+China_Temp <- read_csv("C:/Users/a6hij/Downloads/STAT Proj/ChinaTemp.csv")
+
+China_Population <- China_Population %>% select(-c(Code, Entity)) %>% 
+  rename(Population = "Population - Sex: all - Age: all - Variant: estimates")
+
+China_Population_Temp <- full_join(China_Population, China_Temp, by = "Year")
+```
+
+## Analysis
+
+As seen in the figure below, in our sample set, the average surface temperature in China has a positive correlation with the population rise in China:  
+
+```{r}
+China_Population_Temp %>% ggplot(aes(x = Population, y = AverageTemp)) + geom_point(color = "red") + geom_smooth(method = "lm", se = FALSE) + labs(title = "Population vs. Average Surface Temperature",
+y = "Average Surface Temperature (C)", subtitle = "China 1950-2023" )
+```
+
+## Hypothesis Testing
+
+```{r}
+model_object = lm(AverageTemp ~ Population, data = China_Population_Temp)
+summary(model_object)
+```
+
+#### STEP 1: Model Statement
+```{r}
+ggplot(China_Population_Temp, aes(x = Population, y = resid(model_object))) +
+  geom_point() +
+  geom_hline(yintercept = 0)
+```
+
+Linearity is not satisfied; the residuals show a slight curve pattern which could imply that our data may not be completely linear, but we shall ignore this because it occurs to a relatively smaller level. 
+
+Normal errors around 0 is partially satisfied; the residuals tend towards the central line, with large outliers uncommon, however, they are not symmetric but once again, we shall ignore this because it is an effect of the linearity of our data not being satisfied which we previously ignored.
+
+Constant variance is satisfied; the residuals do not fan out or funnel in as the population increases.
+
+
+#### STEP 2: State Hypothesis
+H_0: Beta_1 = 0, 
+H_alpha: Beta_1 \> 0
+
+#### STEP 3: Test Statistic and Null Distribution
+```{r}
+point_estimate = 1.628e-09 
+se = 1.500e-10
+n = nrow(China_Population_Temp)
+
+test_stat = (point_estimate - 0)/se
+test_stat
+```
+
+We have thus identified our test statistic using the estimate and standard error values previously calculated. 
+
+Since we are taking our null hypothesis to be Beta_1 = 0 (indicating no correlation between population and temperature) our null distribution will be centered at 0 and will follow T~t(73) distribution since we have 75 rows in our sample. 
+
+#### STEP 4: Identifying relevant outcomes from Data and Alternate Hypotheses
+```{r}
+gt(df = n - 1) +
+  geom_vline(xintercept = test_stat, color = "red") 
+
+```
+
+Clearly, we are over eight standard errors away from the mean which will mean a very small p-value, constituting strong evidence against the null hypothesis.
+
+#### STEP 5: Calculate P-value
+```{r}
+p_value = pt(test_stat, df = n-2, lower.tail = FALSE)
+p_value
+```
+
+#### STEP 6: Interpretation
+We have statistically significant evidence to conclude that Population Increase influences Average Temperature {p-value is 4.135499e-17 . Since the p-value is less than alpha (.05), we can reject the null hypothesis that B_1 = 0} 
+
+## Discussion
+
+#### Further Interpretation 
+
+The evidence presented by the test allows us to determine that there is strong evidence to support a linear relationship between the population and average surface temperature in China from 1950-2023. Thus, we can conclude that the rise in population does have an impact on the surface temperature.
+
+#### Short-comings and Future Work 
+
+A proponent may object to the fact that this data only comes from China and does not properly symbolize the data worldwide. To fix this we can include other countries in our study from vastly different regions and populations. Fixing any skewed data that may be present and showing a better average worldwide.
+
+A second objection may be to the fact that we measure our correlation using a linear relationship although some factors that satisfy a linear relationship are not met. This can be improved upon in the future by checking for a correlation using quadratic relationships.
+
+Another proponent may claim that pollution is also directly affecting the surface temperature, a variable which is not taken into account during our study. This can be adjusted for using the average population level within each country, displaying if there is any correlation between its rise/fall and the average surface temperature.
